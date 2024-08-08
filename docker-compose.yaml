@@ -1,0 +1,41 @@
+services:
+  api1:
+    depends_on:
+      - datadog
+    container_name: api1
+    # image: service-a
+    build: ./receiver
+    ports:
+      - "3000:8080"
+    environment:
+      DD_SERVICE: todos
+      DD_TRACE_SERVICE_MAPPING: http-client:todos
+      DD_ENV: local
+      DD_VERSION: 1.0
+      DD_TRACE_AGENT_URL: "http://datadog:8126"
+  api2:
+    depends_on:
+      - datadog
+      - api1
+    container_name: api2
+    # image: service-a
+    build: ./receiver-2
+    ports:
+      - "3001:8080"
+    environment:
+      DD_SERVICE: users
+      DD_ENV: local
+      DD_VERSION: 1.0
+      DD_TRACE_AGENT_URL: "http://datadog:8126"
+  datadog:
+    image: datadog/agent:latest
+    pid: host
+    environment:
+      - DD_API_KEY=8eeac2331db3beb096806f1862bb11bf
+      - DD_SITE=us5.datadoghq.com
+      - DD_LOG_LEVEL=CRITICAL
+      - DD_ENV=local
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
