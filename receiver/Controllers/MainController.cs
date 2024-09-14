@@ -1,22 +1,32 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Receiver.Data;
+using Receiver.Models;
 
 namespace Receiver.Controllers
 {
-    public class ResponseBody(String name)
+    public class UserBody
     {
-        public String Name { get; set; } = name;
+        public int Id { get; set; }
+        public string? Username { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public DateTime Timestamp { get; set; }
+
     }
 
     [ApiController]
-    public class ForecastController : ControllerBase
+    public class TodosController : ControllerBase
     {
         private readonly ILogger _logger;
+        private readonly AppDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public ForecastController(ILogger<ForecastController> logger, IHttpClientFactory httpClientFactory
-)
+        public TodosController(ILogger<TodosController> logger, AppDbContext context, IHttpClientFactory httpClientFactory)
         {
             _logger = logger;
+            _context = context;
             _httpClientFactory = httpClientFactory;
         }
 
@@ -24,29 +34,31 @@ namespace Receiver.Controllers
         [HttpGet]
         [Route("/todos")]
         //[Trace(OperationName = "api.GetForecast", ResourceName = "Handler")]
-        public async Task<ActionResult<ResponseBody>> Get()
+        public async Task<ActionResult<IEnumerable<Todo>>> GetTodos()
         {
             this._logger.LogInformation("Request Received");
-
-            var httpRequestMessage = new HttpRequestMessage(
-            HttpMethod.Get,
-            "http://api2:8080/users");
+            var todos = await this._context.Todos.ToListAsync();
             var httpClient = _httpClientFactory.CreateClient();
-            var httpResponseMessage = await httpClient.SendAsync(httpRequestMessage);
 
-            if (httpResponseMessage.IsSuccessStatusCode)
+            foreach (var t in todos)
             {
-                this._logger.LogInformation("Success calling /todos");
-            }
-            else
-            {
-                this._logger.LogError("Error calling /todos");
+                this._logger.LogInformation("Making a request for: " + t.UserId);
+                /*var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://api2:8080/users/" + t.UserId);*/
+                /*var httpResponseMessage = await httpClient.SendAsync(httpRequestMessage);*/
+                var body = await httpClient.GetFromJsonAsync<UserBody>("http://api2:8080/users/" + t.UserId,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+                if (body != null)
+                {
+                    t.Username = body.Username;
+                }
+                else
+                {
+                    t.Username = "Unassigned";
+                }
             }
 
-            return await Task.Run(() =>
-            {
-                return Task.FromResult<ActionResult<ResponseBody>>(new ResponseBody("Hello"));
-            });
+            return todos;
         }
     }
 }

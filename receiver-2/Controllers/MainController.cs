@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Receiver2.Data;
+using Receiver2.Models;
 
-namespace Receiver.Controllers
+namespace Receiver2.Controllers
 {
 
     public class ResponseBody(String name)
@@ -9,23 +12,37 @@ namespace Receiver.Controllers
     }
 
     [ApiController]
-    public class ForecastController : ControllerBase
+    public class UsersController : ControllerBase
     {
         private readonly ILogger _logger;
+        private readonly AppDbContext _context;
 
-        public ForecastController(ILogger<ForecastController> logger)
+        public UsersController(ILogger<UsersController> logger, AppDbContext context)
         {
             _logger = logger;
+            _context = context;
         }
 
+        [HttpGet("/users/{id}")]
+        public async Task<ActionResult<User>> GetUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+
+            this._logger.LogInformation("(ID)={}, (User)={}", id, user);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return user;
+        }
 
         [HttpGet]
-        //[Trace(OperationName = "api.GetForecast", ResourceName = "Handler")]
         [Route("/users")]
-        public Task<ActionResult<ResponseBody>> Get()
+        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            this._logger.LogInformation("/todos Request Received");
-            return Task.FromResult<ActionResult<ResponseBody>>(new ResponseBody("Hello"));
+            this._logger.LogInformation("/users Request Received");
+            return await this._context.Users.ToListAsync();
         }
 
     }
